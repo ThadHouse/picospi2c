@@ -26,7 +26,7 @@ use fugit::RateExtU32;
 
 use hal::{clocks::Clock, pac, watchdog::Watchdog};
 
-use crate::spi_pio::{spi_pio_init_0, Pio0Cfg};
+use crate::spi_pio::{spi_pio_init, PioCfg};
 
 #[allow(unsafe_code)]
 #[link_section = ".boot2"]
@@ -81,7 +81,7 @@ fn main() -> ! {
 
     let cs_pin: Pin<Gpio13, FunctionSio<SioInput>, PullUp> = pins.gpio13.into_pull_up_input();
 
-    let cfg = Pio0Cfg {
+    let cfg = PioCfg {
         pio: pac.PIO0,
         cs_pin: &cs_pin,
         cipo_pin: pins.gpio10,
@@ -89,12 +89,14 @@ fn main() -> ! {
         sck_pin: pins.gpio12,
     };
 
-    let mut pios = spi_pio_init_0(cfg, &mut pac.RESETS);
+    let mut pios = spi_pio_init(cfg, &mut pac.RESETS);
 
     // spi_pio_init(pac.PIO0, &mut pac.RESETS);
 
     let mut read_data = [0u8; 256];
     let mut write_data = [0u8; 256];
+
+    _delay.delay_ms(50);
 
     loop {
         // Wait for CS to go high

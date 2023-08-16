@@ -5,35 +5,36 @@ use rp2040_hal::gpio::{
 use rp2040_hal::pio::{Running, Rx, StateMachine, Tx, PIO, SM0, SM1};
 use rp2040_hal::{
     gpio::FunctionPio0,
-    pac::{self, PIO0},
+    pac::{self},
     pio::{PIOBuilder, PIOExt, PinDir},
 };
 
-pub struct Pio0Cfg<'a, CS: PinId, CIPO: PinId, COPI: PinId, SCK: PinId> {
-    pub pio: PIO0,
+pub struct PioCfg<'a, P: PIOExt, CS: PinId, CIPO: PinId, COPI: PinId, SCK: PinId> {
+    pub pio: P,
     pub cs_pin: &'a Pin<CS, FunctionSio<SioInput>, PullUp>,
     pub cipo_pin: Pin<CIPO, FunctionNull, PullDown>,
     pub copi_pin: Pin<COPI, FunctionNull, PullDown>,
     pub sck_pin: Pin<SCK, FunctionNull, PullDown>,
 }
 
-pub struct SPIPio {
-    pub cs_sm: StateMachine<(PIO0, SM0), Running>,
-    pub bits_sm: StateMachine<(PIO0, SM1), Running>,
-    pub bits_tx: Tx<(PIO0, SM1)>,
-    pub bits_rx: Rx<(PIO0, SM1)>,
-    pub pio: PIO<PIO0>,
+pub struct SPIPio<P: PIOExt> {
+    pub cs_sm: StateMachine<(P, SM0), Running>,
+    pub bits_sm: StateMachine<(P, SM1), Running>,
+    pub bits_tx: Tx<(P, SM1)>,
+    pub bits_rx: Rx<(P, SM1)>,
+    pub pio: PIO<P>,
 }
 
-pub fn spi_pio_init_0<
+pub fn spi_pio_init<
+    P: PIOExt,
     CS: PinId,
     CIPO: PinId + ValidFunction<FunctionPio0>,
     COPI: PinId,
     SCK: PinId,
 >(
-    cfg: Pio0Cfg<CS, CIPO, COPI, SCK>,
+    cfg: PioCfg<P, CS, CIPO, COPI, SCK>,
     resets: &mut pac::RESETS,
-) -> SPIPio {
+) -> SPIPio<P> {
     let (mut pio, sm0, sm1, _, _) = cfg.pio.split(resets);
 
     let cs_program = pio_proc::pio_asm!(

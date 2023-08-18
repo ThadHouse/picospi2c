@@ -9,10 +9,7 @@
 use defmt::*;
 use defmt_rtt as _;
 use embedded_hal::digital::v2::InputPin;
-use hal::{
-    entry,
-    gpio::{bank0::Gpio13, FunctionI2c, FunctionSio, Pin, PullUp, SioInput},
-};
+use hal::{entry, gpio::FunctionI2c};
 use panic_probe as _;
 use rp2040_hal as hal;
 
@@ -79,35 +76,31 @@ fn main() -> ! {
         &clocks.system_clock,
     );
 
-    let cs_pin: Pin<Gpio13, FunctionSio<SioInput>, PullUp> = pins.gpio13.into_pull_up_input();
+    let cs_pin = pins.gpio13.into_pull_up_input();
 
     let cfg = PioCfg {
         pio: pac.PIO0,
         cs_pin: &cs_pin,
-        cipo_pin: pins.gpio10,
-        copi_pin: pins.gpio11,
-        sck_pin: pins.gpio12,
+        cipo_pin: pins.gpio10.into_floating_input(),
+        copi_pin: pins.gpio11.into_floating_input(),
+        sck_pin: pins.gpio12.into_floating_input(),
     };
 
     let mut pios = spi_pio_init(cfg, &mut pac.RESETS);
 
-    // spi_pio_init(pac.PIO0, &mut pac.RESETS);
-
     let mut read_data = [0u8; 256];
     let mut write_data = [0u8; 256];
-
-    _delay.delay_ms(50);
 
     loop {
         // Wait for CS to go high
         while cs_pin.is_low().unwrap() {}
         pios.bits_sm.restart();
         pios.bits_sm.clear_fifos();
-        // TODO Clear RX buffer
+
         // Wait for CS to go low
         while cs_pin.is_high().unwrap() {}
 
-        defmt::info!("Went High");
+        //defmt::info!("Went Low");
 
         let mut idx: u8 = 0;
         while cs_pin.is_low().unwrap() {
@@ -118,6 +111,11 @@ fn main() -> ! {
                 }
                 None => {}
             }
+        }
+
+        while let Some(d) = pios.bits_rx.read() {
+            read_data[idx as usize] = d as u8;
+            idx = idx.wrapping_add(1);
         }
         defmt::info!("Read {} {}", idx, read_data[..idx as usize]);
 
@@ -135,11 +133,10 @@ fn main() -> ! {
         pios.bits_sm.restart();
         pios.bits_sm.clear_fifos();
 
-        // TODO Clear TX Buffer
-
         // Load buffer
-        pios.bits_tx.write_u8_replicated(write_data[idx as usize]);
-        idx += 1;
+        while pios.bits_tx.write_u8_replicated(write_data[idx as usize]) {
+            idx += 1;
+        }
 
         // Wait for CS to go low
         while cs_pin.is_high().unwrap() {}

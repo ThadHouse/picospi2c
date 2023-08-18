@@ -1,7 +1,5 @@
 use pio::Instruction;
-use rp2040_hal::gpio::{
-    FunctionNull, FunctionSio, Pin, PinId, PullDown, PullUp, SioInput, ValidFunction,
-};
+use rp2040_hal::gpio::{FunctionSio, Pin, PinId, PullNone, PullUp, SioInput, ValidFunction};
 use rp2040_hal::pio::{Running, Rx, StateMachine, Tx, PIO, SM0, SM1};
 use rp2040_hal::{
     gpio::FunctionPio0,
@@ -12,9 +10,9 @@ use rp2040_hal::{
 pub struct PioCfg<'a, P: PIOExt, CS: PinId, CIPO: PinId, COPI: PinId, SCK: PinId> {
     pub pio: P,
     pub cs_pin: &'a Pin<CS, FunctionSio<SioInput>, PullUp>,
-    pub cipo_pin: Pin<CIPO, FunctionNull, PullDown>,
-    pub copi_pin: Pin<COPI, FunctionNull, PullDown>,
-    pub sck_pin: Pin<SCK, FunctionNull, PullDown>,
+    pub cipo_pin: Pin<CIPO, FunctionSio<SioInput>, PullNone>,
+    pub copi_pin: Pin<COPI, FunctionSio<SioInput>, PullNone>,
+    pub sck_pin: Pin<SCK, FunctionSio<SioInput>, PullNone>,
 }
 
 pub struct SPIPio<P: PIOExt> {

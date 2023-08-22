@@ -8,7 +8,6 @@
 
 use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::v2::InputPin;
 use hal::{entry, gpio::FunctionI2c};
 use panic_probe as _;
 use rp2040_hal as hal;
@@ -23,7 +22,7 @@ use fugit::RateExtU32;
 
 use hal::{clocks::Clock, pac, watchdog::Watchdog};
 
-use crate::spi_pio::{spi_pio_init, PioCfg};
+use crate::spi_pio::{PioCfg, spi_pio_init_0};
 
 #[allow(unsafe_code)]
 #[link_section = ".boot2"]
@@ -77,6 +76,9 @@ fn main() -> ! {
     );
 
     let cs_pin = pins.gpio13.into_pull_up_input();
+    let mut _data_ready = pins
+        .gpio9
+        .into_push_pull_output_in_state(hal::gpio::PinState::High);
 
     let cfg = PioCfg {
         pio: pac.PIO0,
@@ -86,69 +88,73 @@ fn main() -> ! {
         sck_pin: pins.gpio12.into_floating_input(),
     };
 
-    let mut pios = spi_pio_init(cfg, &mut pac.RESETS);
+    let mut pios = spi_pio_init_0(cfg, &mut pac.RESETS);
+    pios.start_state_machines();
 
-    let mut read_data = [0u8; 256];
-    let mut write_data = [0u8; 256];
+    // let mut read_data = [0u8; 256];
+    // let mut write_data = [0u8; 256];
 
     loop {
-        // Wait for CS to go high
-        while cs_pin.is_low().unwrap() {}
-        pios.bits_sm.restart();
-        pios.bits_sm.clear_fifos();
+        // // Wait for CS to go high
+        // while cs_pin.is_low().unwrap() {}
+        // // pios.bits_sm.restart();
+        // // pios.bits_sm.clear_fifos();
 
-        // Wait for CS to go low
-        while cs_pin.is_high().unwrap() {}
+        // // Wait for CS to go low
+        // while cs_pin.is_high().unwrap() {}
 
-        //defmt::info!("Went Low");
+        // //defmt::info!("Went Low");
 
-        let mut idx: u8 = 0;
-        while cs_pin.is_low().unwrap() {
-            match pios.bits_rx.read() {
-                Some(d) => {
-                    read_data[idx as usize] = d as u8;
-                    idx = idx.wrapping_add(1);
-                }
-                None => {}
-            }
-        }
+        // let mut idx: u8 = 0;
+        // while cs_pin.is_low().unwrap() {
+        //     match pios.bits_rx.read() {
+        //         Some(d) => {
+        //             read_data[idx as usize] = d as u8;
+        //             idx = idx.wrapping_add(1);
+        //         }
+        //         None => {}
+        //     }
+        // }
 
-        while let Some(d) = pios.bits_rx.read() {
-            read_data[idx as usize] = d as u8;
-            idx = idx.wrapping_add(1);
-        }
-        defmt::info!("Read {} {}", idx, read_data[..idx as usize]);
+        // while let Some(d) = pios.bits_rx.read() {
+        //     read_data[idx as usize] = d as u8;
+        //     idx = idx.wrapping_add(1);
+        // }
+        // defmt::info!("Read {} {}", idx, read_data[..idx as usize]);
 
-        // Do I2C Stuff
-        write_data[0] = 8;
-        write_data[1] = 9;
-        write_data[2] = 10;
-        write_data[3] = 11;
-        idx = 0;
+        // // Do I2C Stuff
+        // write_data[0] = 8;
+        // write_data[1] = 9;
+        // write_data[2] = 10;
+        // write_data[3] = 11;
+        // idx = 0;
 
-        // Set data ready
+        // // Set data ready
+        // data_ready.set_low().unwrap();
 
-        // Wait for high
-        while cs_pin.is_low().unwrap() {}
-        pios.bits_sm.restart();
-        pios.bits_sm.clear_fifos();
+        // // Wait for high
+        // while cs_pin.is_low().unwrap() {}
+        // // pios.bits_sm.restart();
+        // // pios.bits_sm.clear_fifos();
 
-        // Load buffer
-        while pios.bits_tx.write_u8_replicated(write_data[idx as usize]) {
-            idx += 1;
-        }
+        // // Load buffer
+        // while pios.bits_tx.write_u8_replicated(write_data[idx as usize]) {
+        //     idx += 1;
+        // }
 
-        // Wait for CS to go low
-        while cs_pin.is_high().unwrap() {}
+        // // Wait for CS to go low
+        // while cs_pin.is_high().unwrap() {}
 
-        while cs_pin.is_low().unwrap() {
-            // Add more bytes, increment if successfull
-            if pios.bits_tx.write_u8_replicated(write_data[idx as usize]) {
-                idx = idx.wrapping_add(1);
-            }
-        }
+        // data_ready.set_high().unwrap();
 
-        defmt::info!("Write {} {}", idx, write_data[..idx as usize]);
+        // while cs_pin.is_low().unwrap() {
+        //     // Add more bytes, increment if successfull
+        //     if pios.bits_tx.write_u8_replicated(write_data[idx as usize]) {
+        //         idx = idx.wrapping_add(1);
+        //     }
+        // }
+
+        // defmt::info!("Write {} {}", idx, write_data[..idx as usize]);
     }
 
     // // These are implicitly used by the spi driver if they are in the correct mode
